@@ -48,14 +48,10 @@ setInterval(() => {
     console.log('Should have a new follower')
 
     let newFollowers = []
-    let lastPass
     for (let follower of followers) {
       if (follower.id === lastFollower.id) {
-        lastFollower = lastPass
         break
       }
-
-      lastPass = follower
 
       newFollowers.push(follower)
     }
@@ -63,6 +59,8 @@ setInterval(() => {
     newFollowers.forEach(follower => {
       notifyNewFollower(follower.name)
     })
+
+    lastFollower = followers[0]
   })
   .catch(err => {
     console.error(err)
