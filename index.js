@@ -1,70 +1,52 @@
 'use strict'
 
-const request = require('request')
-const notifier = require('node-notifier');
+const electron = require('electron');
+const app = electron.app;  // Module to control application life.
+const BrowserWindow = electron.BrowserWindow;  // Module to create native browser window.
+const ipcMain = electron.ipcMain;
+ 
+// Report crashes to our server.
+electron.crashReporter.start();
+ 
+// Keep a global reference of the window object, if you don't, the window will
+// be closed automatically when the JavaScript object is garbage collected.
+var mainWindow = null;
+ 
+// Quit when all windows are closed.
+app.on('window-all-closed', function() {
+  // On OS X it is common for applications and their menu bar
+  // to stay active until the user quits explicitly with Cmd   Q
+  if (process.platform != 'darwin') {
+    app.quit();
+  }
+});
+ 
+// This method will be called when Electron has finished
+// initialization and is ready to create browser windows.
+app.on('ready', function() {
+  // Create the browser window and disable integration with node
+  mainWindow = new BrowserWindow({
+    width: 800,
+    height: 600
+  });
+ 
+  // and load the index.html of the app.
+  mainWindow.loadURL('file://' + __dirname + '/public/index.html');
+ 
+  // Open the DevTools.
+  // mainWindow.webContents.openDevTools();
+ 
+  // Emitted when the window is closed.
+  mainWindow.on('closed', function() {
+    // Dereference the window object, usually you would store windows
+    // in an array if your app supports multi windows, this is the time
+    // when you should delete the corresponding element.
+    mainWindow = null;
+  });
 
-const username = 'eddiezane'
-const url = 'https://api.twitch.tv/kraken/channels/' + username + '/follows'
+  ipcMain.on('username', function(event, username) {
+    console.log('username is: ' + username);  // prints "ping"
+    require('./background.js')(username)
+  });
 
-let lastFollower
-
-function getFollowers () {
-  return new Promise((resolve, reject) => {
-    request({ url, json: true }, (err, resp, body) => {
-      if (err) {
-        reject(err)
-      }
-
-      const followers = body.follows.map(follower => {
-        return { id: follower.user._id, name: follower.user.name }
-      })
-
-      resolve(followers)
-    })
-  })
-}
-
-function notifyNewFollower (name) {
-  console.log('Notifying about: ' + name)
-  notifier.notify({
-    title: 'New Follower',
-    message: name + ' is now following you'
-  })
-}
-
-setInterval(() => {
-  getFollowers()
-  .then(followers => {
-    if (!lastFollower) {
-      lastFollower = followers[0]
-      return
-    }
-
-    if (followers[0].id === lastFollower.id) {
-      console.log('No new followers')
-      return
-    }
-
-    console.log('Should have a new follower')
-
-    let newFollowers = []
-    let lastPass
-    for (let follower of followers) {
-      if (follower.id === lastFollower.id) {
-        lastFollower = lastPass
-        break
-      }
-
-      lastPass = follower
-
-      newFollowers.push(follower)
-    }
-
-    newFollowers.forEach(follower => {
-      notifyNewFollower(follower.name)
-    })
-  })
-  .catch(err => {
-    console.error(err)
-  })
-}, 1000 * 20)
+});
